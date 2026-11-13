@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sig-dren-matola-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.mjs
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: PORT
+        value: 4000
+
