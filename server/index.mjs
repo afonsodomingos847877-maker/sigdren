@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import dns from 'node:dns';
+import crypto from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
@@ -12,6 +13,28 @@ app.use(express.json({ limit: '15mb' }));
 
 const PORT = Number(process.env.PORT) || 4000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const AUTH_SECRET = process.env.AUTH_SECRET || 'sig-dren-matola-secret-key-2026';
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.includes(':')) return false;
+  const [salt, key] = storedHash.split(':');
+  const derived = crypto.scryptSync(password, salt, 64);
+  const keyBuf = Buffer.from(key, 'hex');
+  return keyBuf.length === derived.length && crypto.timingSafeEqual(keyBuf, derived);
+}
+
+function signToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ ...payload, iat: Date.now() })).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${sig}`;
+}
 
 if (!MONGODB_URI) {
   console.error('MONGODB_URI nao definida no ficheiro .env');
@@ -33,7 +56,7 @@ function withGeoPoint(doc) {
 
 function stripMongoId(doc) {
   if (!doc) return doc;
-  const { _id, ...rest } = doc;
+  const { _id, passwordHash, ...rest } = doc;
   return rest;
 }
 
@@ -74,7 +97,11 @@ app.post('/api/bootstrap', async (req, res) => {
     const existingUsers = await db.collection('users').countDocuments();
 
     if (existingUsers === 0 && Array.isArray(seed.users) && seed.users.length > 0) {
-      await db.collection('users').insertMany(seed.users);
+      const usersWithPasswords = seed.users.map((u) => ({
+        ...u,
+        passwordHash: u.passwordHash || hashPassword('sigdren2026'),
+      }));
+      await db.collection('users').insertMany(usersWithPasswords);
       if (seed.infrastructures?.length) {
         await db.collection('infrastructures').insertMany(seed.infrastructures.map(withGeoPoint));
       }
@@ -293,10 +320,48 @@ app.patch('/api/notifications/:id/read', async (req, res) => {
   }
 });
 
+// Auth Login (verifies password hash + issues JWT token)
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'E-mail e palavra-passe são obrigatórios.' });
+    }
+    const user = await db.collection('users').findOne({
+      email: { $regex: new RegExp(`^${String(email).trim()}$`, 'i') },
+    });
+    if (!user) return res.status(401).json({ error: 'Utilizador não encontrado.' });
+    if (!user.active) return res.status(403).json({ error: 'Conta desactivada. Contacte o Administrador.' });
+
+    // Backfill default passwordHash if user was seeded prior to password enforcement
+    let hash = user.passwordHash;
+    if (!hash) {
+      hash = hashPassword('sigdren2026');
+      await db.collection('users').updateOne({ id: user.id }, { $set: { passwordHash: hash } });
+    }
+
+    if (!verifyPassword(String(password), hash)) {
+      return res.status(401).json({ error: 'Palavra-passe incorrecta.' });
+    }
+
+    const lastLoginAt = new Date().toISOString();
+    await db.collection('users').updateOne({ id: user.id }, { $set: { lastLoginAt } });
+    const token = signToken({ sub: user.id, email: user.email, role: user.role });
+    res.json({ token, user: stripMongoId({ ...user, lastLoginAt }) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Users
 app.post('/api/users', async (req, res) => {
   try {
-    await db.collection('users').insertOne(req.body);
+    const { password, ...rest } = req.body;
+    const doc = {
+      ...rest,
+      passwordHash: hashPassword(password || 'sigdren2026'),
+    };
+    await db.collection('users').insertOne(doc);
     res.status(201).json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -319,6 +384,41 @@ app.post('/api/audit-logs', async (req, res) => {
     res.status(201).json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Restore Full JSON Backup
+app.post('/api/restore-backup', async (req, res) => {
+  try {
+    const data = req.body?.data || {};
+    const collections = [
+      'infrastructures',
+      'inspections',
+      'occurrences',
+      'risk_zones',
+      'maintenance_plans',
+      'work_orders',
+      'indicators',
+      'audit_logs',
+    ];
+    await Promise.all(collections.map((c) => db.collection(c).deleteMany({})));
+
+    if (data.infrastructures?.length)
+      await db.collection('infrastructures').insertMany(data.infrastructures.map(withGeoPoint));
+    if (data.inspections?.length)
+      await db.collection('inspections').insertMany(data.inspections.map(withGeoPoint));
+    if (data.occurrences?.length)
+      await db.collection('occurrences').insertMany(data.occurrences.map(withGeoPoint));
+    if (data.riskZones?.length) await db.collection('risk_zones').insertMany(data.riskZones);
+    if (data.maintenancePlans?.length)
+      await db.collection('maintenance_plans').insertMany(data.maintenancePlans);
+    if (data.workOrders?.length) await db.collection('work_orders').insertMany(data.workOrders);
+    if (data.indicators?.length) await db.collection('indicators').insertMany(data.indicators);
+    if (data.auditLogs?.length) await db.collection('audit_logs').insertMany(data.auditLogs);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

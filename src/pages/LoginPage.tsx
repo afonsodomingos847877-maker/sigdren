@@ -10,12 +10,12 @@ export const LoginPage: React.FC = () => {
   const { login, loginAsRole } = useApp();
   const navigate = useNavigate();
   const [email, setEmail] = useState('admin@emsaam.gov.mz');
-  const [password, setPassword] = useState('••••••••');
+  const [password, setPassword] = useState('sigdren2026');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = login(email);
+    const res = await login(email, password);
     if (!res.ok) {
       setError(res.error ?? 'Erro ao autenticar');
       return;
@@ -23,8 +23,8 @@ export const LoginPage: React.FC = () => {
     navigate('/app');
   };
 
-  const handleQuickRole = (role: RoleCode) => {
-    loginAsRole(role);
+  const handleQuickRole = async (role: RoleCode) => {
+    await loginAsRole(role);
     navigate('/app');
   };
 

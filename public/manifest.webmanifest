@@ -1,0 +1,17 @@
+{
+  "name": "SIG-DREN MATOLA - Sistema Integrado de Drenagem e GIS",
+  "short_name": "SIG DREN",
+  "description": "Sistema Integrado de Mapeamento, Gestão e Monitoria de Zonas de Inundação e Infra-estruturas de Drenagem da Matola",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#142B4A",
+  "icons": [
+    {
+      "src": "/logo_muv.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+

@@ -44,8 +44,8 @@ interface AppContextValue {
   dbConnected: boolean;
   currentUser: User | null;
   can: (permission: Permission) => boolean;
-  login: (email: string) => { ok: boolean; error?: string };
-  loginAsRole: (role: RoleCode) => void;
+  login: (email: string, password?: string) => Promise<{ ok: boolean; error?: string }>;
+  loginAsRole: (role: RoleCode) => Promise<void>;
   logout: () => void;
 
   // Online / Offline
@@ -97,6 +97,7 @@ interface AppContextValue {
 
   recordAudit: (action: AuditLog['action'], entity: string, details: string, entityId?: string) => void;
   exportFullBackup: () => void;
+  importFullBackup: (payload: { data?: Record<string, unknown[]> }) => Promise<{ ok: boolean; error?: string }>;
   resetDemoData: () => Promise<void>;
 }
 
@@ -325,7 +326,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const login = useCallback(
-    (email: string) => {
+    async (email: string, password?: string) => {
+      if (dbConnected && password !== undefined) {
+        const res = await apiRequest<{ token: string; user: User; error?: string }>(
+          '/api/auth/login',
+          {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+          }
+        );
+        if (!res.ok || !res.data?.user) {
+          return { ok: false, error: res.data?.error || 'Credenciais inválidas.' };
+        }
+        const updated = res.data.user;
+        localStorage.setItem('sig_dren_auth_token', res.data.token);
+        setCurrentUser(updated);
+        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+        localStorage.setItem(STORAGE_USER_KEY, updated.id);
+        recordAudit('LOGIN', 'Sessão', 'Autenticação efectuada com palavra-passe e token JWT.');
+        return { ok: true };
+      }
+
       const found = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
       if (!found) return { ok: false, error: 'Utilizador não encontrado.' };
       if (!found.active) return { ok: false, error: 'Conta desactivada. Contacte o Administrador.' };
@@ -333,28 +354,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUser(updated);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       localStorage.setItem(STORAGE_USER_KEY, updated.id);
-      setAuditLogs((prev) => [
-        {
-          id: `aud-${Date.now()}`,
-          userName: updated.fullName,
-          userRole: ROLES[updated.role].name,
-          action: 'LOGIN',
-          entity: 'Sessão',
-          details: 'Autenticação efectuada com sucesso no backoffice.',
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+      recordAudit('LOGIN', 'Sessão', 'Autenticação efectuada com sucesso no backoffice.');
       return { ok: true };
     },
-    [users]
+    [users, dbConnected, recordAudit]
   );
 
   const loginAsRole = useCallback(
-    (role: RoleCode) => {
+    async (role: RoleCode) => {
       const found = users.find((u) => u.role === role && u.active);
       if (found) {
-        login(found.email);
+        await login(found.email, 'sigdren2026');
       }
     },
     [users, login]
@@ -363,6 +373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(() => {
     setCurrentUser(null);
     localStorage.removeItem(STORAGE_USER_KEY);
+    localStorage.removeItem('sig_dren_auth_token');
   }, []);
 
   // Infrastructure CRUD
@@ -863,6 +874,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     recordAudit('EXPORT', 'Backup Completo', 'Exportou cópia de segurança JSON da base de dados.');
   }, [users, neighborhoods, infrastructures, inspections, occurrences, riskZones, maintenancePlans, workOrders, baseIndicators, auditLogs, recordAudit]);
 
+  const importFullBackup = useCallback(
+    async (payload: { data?: Record<string, unknown[]> }) => {
+      const d = payload?.data;
+      if (!d || typeof d !== 'object') {
+        return { ok: false, error: 'Ficheiro de backup inválido.' };
+      }
+      if (Array.isArray(d.infrastructures)) setInfrastructures(d.infrastructures as Infrastructure[]);
+      if (Array.isArray(d.inspections)) setInspections(d.inspections as Inspection[]);
+      if (Array.isArray(d.occurrences)) setOccurrences(d.occurrences as Occurrence[]);
+      if (Array.isArray(d.riskZones)) setRiskZones(d.riskZones as RiskZone[]);
+      if (Array.isArray(d.maintenancePlans)) setMaintenancePlans(d.maintenancePlans as MaintenancePlan[]);
+      if (Array.isArray(d.workOrders)) setWorkOrders(d.workOrders as WorkOrder[]);
+      if (Array.isArray(d.indicators)) setBaseIndicators(d.indicators as MealIndicator[]);
+      if (Array.isArray(d.auditLogs)) setAuditLogs(d.auditLogs as AuditLog[]);
+      await apiRequest('/api/restore-backup', {
+        method: 'POST',
+        body: JSON.stringify({ data: d }),
+      });
+      recordAudit('SYNC', 'Restauro de Backup', 'Restaurou cópia de segurança JSON da base de dados.');
+      return { ok: true };
+    },
+    [recordAudit]
+  );
+
   const resetDemoData = useCallback(async () => {
     await clearAllState();
     await apiRequest('/api/reset-demo', {
@@ -941,6 +976,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateUser,
         recordAudit,
         exportFullBackup,
+        importFullBackup,
         resetDemoData,
       }}
     >

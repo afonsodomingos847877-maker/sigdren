@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
-import { Database, Download, History, Mail, RotateCcw, Server, ShieldCheck } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Database, Download, History, Mail, RotateCcw, Server, ShieldCheck, Upload } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { Badge } from '@/components/ui/Badge';
 
 export const SettingsPage: React.FC = () => {
-  const { auditLogs, exportFullBackup, resetDemoData, can, dbConnected } = useApp();
+  const { auditLogs, exportFullBackup, importFullBackup, resetDemoData, can, dbConnected } = useApp();
   const [emailGateway, setEmailGateway] = useState('smtp.emsaam.gov.mz');
   const [smsProvider, setSmsProvider] = useState('Gateway SMS Moçambique (Pronto para API)');
   const [savedNotice, setSavedNotice] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const res = await importFullBackup(parsed);
+      setRestoreMsg(
+        res.ok ? 'Backup restaurado com sucesso.' : res.error || 'Erro ao restaurar backup.'
+      );
+    } catch {
+      setRestoreMsg('Ficheiro JSON inválido.');
+    } finally {
+      if (restoreInputRef.current) restoreInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -45,8 +63,25 @@ export const SettingsPage: React.FC = () => {
               onClick={exportFullBackup}
               className="px-3.5 py-2 rounded-md bg-[#142B4A] text-white font-medium flex items-center gap-1.5 hover:bg-[#171717]"
             >
-              <Download className="w-3.5 h-3.5" /> Exportar Backup Completo (JSON)
+              <Download className="w-3.5 h-3.5" /> Exportar Backup (JSON)
             </button>
+            {can('manage_settings') && (
+              <>
+                <input
+                  ref={restoreInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleRestoreFile}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => restoreInputRef.current?.click()}
+                  className="px-3.5 py-2 rounded-md bg-white border border-neutral-200 text-[#171717] hover:bg-[#F4F4F4] flex items-center gap-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#2563EB]" /> Restaurar Backup
+                </button>
+              </>
+            )}
             {can('manage_settings') && (
               <button
                 onClick={async () => {
@@ -60,6 +95,7 @@ export const SettingsPage: React.FC = () => {
               </button>
             )}
           </div>
+          {restoreMsg && <div className="text-[11px] text-[#2563EB] pt-1">{restoreMsg}</div>}
         </div>
 
         {/* Email / SMS Readiness */}
