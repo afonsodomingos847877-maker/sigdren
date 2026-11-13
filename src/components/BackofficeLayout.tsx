@@ -14,6 +14,8 @@ import {
   LogOut,
   MapPin,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Search,
   Settings,
@@ -72,6 +74,7 @@ export const BackofficeLayout: React.FC = () => {
 
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [globalQuery, setGlobalQuery] = useState('');
 
@@ -122,6 +125,18 @@ export const BackofficeLayout: React.FC = () => {
             aria-label="Menu"
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            className="hidden lg:inline-flex p-2 rounded-md hover:bg-[#F4F4F4] text-[#555555] hover:text-[#171717] transition-colors"
+            title={sidebarCollapsed ? 'Expandir menu' : 'Colapsar menu'}
+            aria-label={sidebarCollapsed ? 'Expandir menu' : 'Colapsar menu'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4" />
+            ) : (
+              <PanelLeftClose className="w-4 h-4" />
+            )}
           </button>
           <Logo />
         </div>
@@ -270,9 +285,9 @@ export const BackofficeLayout: React.FC = () => {
       <div className="flex-1 flex">
         {/* Sidebar */}
         <aside
-          className={`fixed lg:static inset-y-0 left-0 z-30 w-60 bg-white border-r border-neutral-200 pt-16 lg:pt-4 pb-6 px-3 flex flex-col justify-between transform transition-transform lg:translate-x-0 ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`fixed lg:static inset-y-0 left-0 z-30 bg-white border-r border-neutral-200 pt-16 lg:pt-4 pb-6 px-2.5 flex flex-col justify-between transform transition-all duration-200 lg:translate-x-0 ${
+            sidebarCollapsed ? 'lg:w-16 w-60' : 'w-60'
+          } ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
           <nav className="space-y-1">
             {NAV_ITEMS.filter((item) => can(item.permission)).map((item) => {
@@ -282,9 +297,12 @@ export const BackofficeLayout: React.FC = () => {
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  title={sidebarCollapsed ? item.label : undefined}
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
+                    `flex items-center ${
+                      sidebarCollapsed ? 'lg:justify-center lg:px-2 px-3' : 'gap-3 px-3'
+                    } py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
                       isActive
                         ? 'bg-[#142B4A] text-white'
                         : 'text-[#555555] hover:bg-[#F4F4F4] hover:text-[#171717]'
@@ -292,16 +310,21 @@ export const BackofficeLayout: React.FC = () => {
                   }
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <span className={sidebarCollapsed ? 'lg:hidden' : ''}>{item.label}</span>
                 </NavLink>
               );
             })}
           </nav>
 
           <div className="mt-6 pt-4 border-t border-neutral-100 px-2 space-y-2">
-            <div className="flex items-center gap-1.5 text-[11px] text-[#777777]">
-              <MapPin className="w-3.5 h-3.5 text-[#2563EB]" />
-              <span>Município da Matola</span>
+            <div
+              className={`flex items-center ${
+                sidebarCollapsed ? 'lg:justify-center' : 'gap-1.5'
+              } text-[11px] text-[#777777]`}
+              title="Município da Matola"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#2563EB] shrink-0" />
+              <span className={sidebarCollapsed ? 'lg:hidden' : ''}>Município da Matola</span>
             </div>
             <button
               onClick={handleLogout}

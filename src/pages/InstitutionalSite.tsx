@@ -289,7 +289,14 @@ export const InstitutionalSite: React.FC = () => {
       <footer className="border-t border-neutral-100 py-6 bg-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#777777]">
           <div>SIG-DREN MATOLA © {new Date().getFullYear()} - EMSAAM</div>
-          <div>Designed By <strong className="font-medium text-[#171717]">Afonso Domingos</strong></div>
+          <a
+            href="https://www.linkedin.com/in/afonso-domingos-6b59361a5/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[#171717] transition-colors"
+          >
+            Designed By <strong className="font-medium text-[#171717]">Afonso Domingos</strong>
+          </a>
           <a
             href="https://www.muv.co.mz"
             target="_blank"
