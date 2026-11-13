@@ -9,8 +9,8 @@ import { Logo } from '@/components/ui/Logo';
 export const LoginPage: React.FC = () => {
   const { login, loginAsRole } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@emsaam.gov.mz');
-  const [password, setPassword] = useState('sigdren2026');
+  const [email, setEmail] = useState('admin@sigdren.co.mz');
+  const [password, setPassword] = useState('@Admin123@');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {

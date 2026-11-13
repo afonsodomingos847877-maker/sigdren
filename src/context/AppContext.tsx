@@ -364,7 +364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (role: RoleCode) => {
       const found = users.find((u) => u.role === role && u.active);
       if (found) {
-        await login(found.email, 'sigdren2026');
+        await login(found.email, role === 'admin' ? '@Admin123@' : 'sigdren2026');
       }
     },
     [users, login]

@@ -31,7 +31,7 @@ export const DEMO_USERS: User[] = [
   {
     id: 'usr-1',
     fullName: 'Eng. Afonso Domingos',
-    email: 'admin@emsaam.gov.mz',
+    email: 'admin@sigdren.co.mz',
     phone: '+258 84 301 1001',
     role: 'admin',
     department: 'Direcção de Tecnologias e SIG',
