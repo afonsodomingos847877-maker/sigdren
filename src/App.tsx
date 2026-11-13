@@ -15,6 +15,7 @@ import { MealPage } from '@/pages/app/MealPage';
 import { ReportsPage } from '@/pages/app/ReportsPage';
 import { UsersPage } from '@/pages/app/UsersPage';
 import { SettingsPage } from '@/pages/app/SettingsPage';
+import { DocumentationPage } from '@/pages/DocumentationPage';
 import { Permission } from '@/types';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -51,6 +52,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<InstitutionalSite />} />
+          <Route path="/documentacao" element={<DocumentationPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           <Route
@@ -135,6 +137,7 @@ export function App() {
               }
             />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="docs" element={<DocumentationPage embedded />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

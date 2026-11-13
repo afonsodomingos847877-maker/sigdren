@@ -1,9 +1,10 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   BarChart3,
   Bell,
+  BookOpen,
   CheckCheck,
   ClipboardCheck,
   Database,
@@ -47,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/app/meal', label: 'Monitoria MEAL', icon: BarChart3, permission: 'view_meal' },
   { to: '/app/reports', label: 'Relatórios', icon: FileSpreadsheet, permission: 'view_reports' },
   { to: '/app/users', label: 'Utilizadores', icon: Users, permission: 'manage_users' },
+  { to: '/app/docs', label: 'Documentação', icon: BookOpen, permission: 'view_dashboard' },
   { to: '/app/settings', label: 'Configurações', icon: Settings, permission: 'view_dashboard' },
 ];
 

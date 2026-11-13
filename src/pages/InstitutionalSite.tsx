@@ -78,6 +78,9 @@ export const InstitutionalSite: React.FC = () => {
             <a href="#contactos" className="hover:text-[#2563EB] transition-colors">
               Contactos
             </a>
+            <Link to="/documentacao" className="hover:text-[#2563EB] transition-colors">
+              Documentação
+            </Link>
           </nav>
 
           <Link
