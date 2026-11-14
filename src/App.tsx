@@ -16,6 +16,7 @@ import { ReportsPage } from '@/pages/app/ReportsPage';
 import { UsersPage } from '@/pages/app/UsersPage';
 import { SettingsPage } from '@/pages/app/SettingsPage';
 import { DocumentationPage } from '@/pages/DocumentationPage';
+import { ScrollPill } from '@/components/ui/ScrollPill';
 import { Permission } from '@/types';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -142,6 +143,7 @@ export function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ScrollPill />
       </BrowserRouter>
     </AppProvider>
   );
